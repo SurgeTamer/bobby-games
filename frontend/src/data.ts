@@ -14,16 +14,18 @@ export type Product = {
 export const money = (n: number) => new Intl.NumberFormat('ru-RU').format(n) + ' ₽'
 
 export const FEATURED: Product = {
-  id: 'eldritch',
-  title: 'Древний ужас',
-  cats: ['company'],
+  id: 'hnefatafl',
+  title: 'Хнефатафл',
+  cats: ['duo', 'strategy'],
   tag: 'хит',
-  meta: '1–8 игроков · 120 мин · 14+',
+  meta: '2 игрока · 30 мин · 8+',
   price: 6490,
   media: 'peri',
 }
 
 export const PRODUCTS: Product[] = [
+  { id: 'gwent', title: 'Гвинт', cats: ['duo', 'strategy'], tag: 'хит', meta: '2 игрока · 30 мин · 12+', price: 3490, media: 'cream' },
+  { id: 'card-wars', title: 'Карточные войны', cats: ['duo', 'kids'], tag: 'пати', meta: 'Время приключений · 2 игрока · 30 мин · 8+', price: 2590, media: 'acid' },
   { id: 'carcassonne', title: 'Каркассон', cats: ['company'], tag: 'новинка', meta: '2–5 игроков · 45 мин · 7+', price: 2490, media: 'peri' },
   { id: 'codenames', title: 'Кодовые имена', cats: ['company', 'party'], tag: 'хит', meta: '4–8 игроков · 15 мин · 10+', price: 1690, media: 'acid' },
   { id: 'arkham', title: 'Ужас Аркхэма', cats: ['strategy'], tag: 'предзаказ', meta: '1–4 игрока · 180 мин · 14+', price: 7990, media: 'cream' },
@@ -39,6 +41,10 @@ export const CATALOG: Product[] = [
   ...PRODUCTS,
   { id: 'carcassonne-inns', title: 'Каркассон. Таверны', cats: ['expand', 'company'], tag: 'дополнение', meta: '2–5 игроков · 45 мин · 7+', price: 1890, media: 'cream' },
 ]
+
+export function productById(id: string) {
+  return CATALOG.find((product) => product.id === id)
+}
 
 export const GENRES: { id: Exclude<Filter, 'all'>; title: string }[] = [
   { id: 'company', title: 'для компании' },
