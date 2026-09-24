@@ -1,0 +1,42 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bobby_games
+      POSTGRES_USER: bobby
+      POSTGRES_PASSWORD: bobby
+    ports:
+      - "5432:5432"
+    volumes:
+      - bobby-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bobby -d bobby_games"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: Host=postgres;Port=5432;Database=bobby_games;Username=bobby;Password=bobby
+      Jwt__Key: docker-development-key-change-in-production-2026
+    ports:
+      - "5066:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  bobby-postgres:

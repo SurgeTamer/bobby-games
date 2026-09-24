@@ -9,6 +9,7 @@ export type Product = {
   meta: string
   price: number
   media: Media
+  isFeatured?: boolean
 }
 
 export const money = (n: number) => new Intl.NumberFormat('ru-RU').format(n) + ' ₽'

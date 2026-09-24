@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ROLE_LABEL, listUsers, ordersFor, type User } from './auth'
 import { Link } from './nav'
 import { money } from './data'
@@ -129,11 +129,12 @@ export function CabinetPage({
   onLogout,
 }: {
   user: User
-  onSave: (patch: { name: string; phone: string; address: string }) => void
+  onSave: (patch: { name: string; phone: string; address: string }) => Promise<void>
   onLogout: () => void
 }) {
-  const orders = ordersFor(user.id)
+  const [orders, setOrders] = useState<Awaited<ReturnType<typeof ordersFor>>>([])
   const [note, setNote] = useState('')
+  useEffect(() => { void ordersFor().then(setOrders) }, [])
   return (
     <main className="account-page account-page--wide">
       <nav className="crumbs" aria-label="Навигация">
@@ -152,10 +153,10 @@ export function CabinetPage({
       <div className="account-layout">
         <form
           className="account-card"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
             const data = new FormData(e.currentTarget)
-            onSave({
+            await onSave({
               name: String(data.get('name') || ''),
               phone: String(data.get('phone') || ''),
               address: String(data.get('address') || ''),
@@ -197,11 +198,11 @@ export function CabinetPage({
                 <li key={order.id}>
                   <div>
                     <strong>{new Date(order.createdAt).toLocaleDateString('ru-RU')}</strong>
-                    <p>{order.items.map((i) => `${i.title} × ${i.qty}`).join(', ')}</p>
+                    <p>{order.items.map((i) => `${i.title} × ${i.quantity}`).join(', ')}</p>
                   </div>
                   <div className="order-list__meta">
                     <span className="chip is-active">{order.status}</span>
-                    <strong>{money(order.sum)}</strong>
+                    <strong>{money(order.total)}</strong>
                   </div>
                 </li>
               ))}
@@ -215,7 +216,8 @@ export function CabinetPage({
 }
 
 export function AdminPage({ user }: { user: User }) {
-  const users = listUsers()
+  const [users, setUsers] = useState<User[]>([])
+  useEffect(() => { void listUsers().then(setUsers) }, [])
   const clients = users.filter((u) => u.role === 'client')
   return (
     <main className="account-page account-page--wide">
@@ -251,4 +253,3 @@ export function AdminPage({ user }: { user: User }) {
     </main>
   )
 }
-

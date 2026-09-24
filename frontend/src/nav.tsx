@@ -1,5 +1,7 @@
 import { type ReactNode } from 'react'
 
+/* eslint-disable react-refresh/only-export-components */
+
 export function go(href: string) {
   const next = new URL(href, window.location.origin)
   const dest = next.pathname + next.search + next.hash

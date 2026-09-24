@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AdminPage, CabinetPage, LoginPage, RegisterPage } from './Account'
-import { currentUser, loginUser, logoutUser, placeOrder, publicRole, registerUser, seedAdmin, updateUser, type User } from './auth'
-import { CATALOG, FEATURED, GENRES, MARQUEE, PICKS, PRODUCTS, money, parseGenres, type Filter, type Product } from './data'
+import { addCartItem, currentUser, loadCart, loadGames, loginUser, logoutUser, placeOrder, publicRole, registerUser, removeCartItem, updateUser, type CartItem, type User } from './auth'
+import { CATALOG, FEATURED, GENRES, MARQUEE, PICKS, money, parseGenres, type Filter, type Product } from './data'
 import { Link, go } from './nav'
-
-type CartItem = { id: string; title: string; price: number; qty: number }
 
 function ProductCard({
   product,
@@ -36,7 +34,7 @@ function ProductCard({
   )
 }
 
-function HomePage({ onAdd, onPick }: { onAdd: (product: Product) => void; onPick: () => void }) {
+function HomePage({ onAdd, onPick, products, featured }: { onAdd: (product: Product) => void; onPick: () => void; products: Product[]; featured: Product }) {
   return (
     <main id="top">
       <section className="hero">
@@ -54,7 +52,7 @@ function HomePage({ onAdd, onPick }: { onAdd: (product: Product) => void; onPick
         </div>
         <aside className="hero__feature">
           <p className="eyebrow">игра недели</p>
-          <ProductCard product={FEATURED} overlay="хит недели" onAdd={onAdd} />
+          <ProductCard product={featured} overlay="хит недели" onAdd={onAdd} />
         </aside>
       </section>
 
@@ -70,7 +68,7 @@ function HomePage({ onAdd, onPick }: { onAdd: (product: Product) => void; onPick
           <Link className="text-link" href="/catalog">все игры →</Link>
         </div>
         <div className="card-grid">
-          {PRODUCTS.map((p) => <ProductCard key={p.id} product={p} onAdd={onAdd} />)}
+          {products.filter((p) => !p.isFeatured).map((p) => <ProductCard key={p.id} product={p} onAdd={onAdd} />)}
         </div>
       </section>
 
@@ -149,6 +147,7 @@ function CatalogPage({
   onToggleGenre,
   onPick,
   onAdd,
+  catalog,
 }: {
   genres: Exclude<Filter, 'all'>[]
   tag: string
@@ -156,6 +155,7 @@ function CatalogPage({
   onToggleGenre: (id: Exclude<Filter, 'all'>) => void
   onPick: (next: { genres?: Exclude<Filter, 'all'>[]; tag?: string }) => void
   onAdd: (product: Product) => void
+  catalog: Product[]
 }) {
   const [sort, setSort] = useState<'title' | 'price-asc' | 'price-desc'>('title')
   const [perPage, setPerPage] = useState(48)
@@ -163,7 +163,7 @@ function CatalogPage({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const rows = CATALOG.filter((p) => {
+    const rows = catalog.filter((p) => {
       const byGenre = genres.length === 0 || genres.some((g) => p.cats.includes(g))
       const byTag = !tag || p.tag === tag
       const byQuery = !q || p.title.toLowerCase().includes(q)
@@ -175,7 +175,7 @@ function CatalogPage({
       return a.title.localeCompare(b.title, 'ru')
     })
     return rows.slice(0, perPage)
-  }, [genres, tag, query, sort, perPage])
+  }, [catalog, genres, tag, query, sort, perPage])
 
   const title = tag
     ? PICKS.find((p) => p.id === tag)?.title ?? 'Каталог'
@@ -281,12 +281,13 @@ function CatalogPage({
 function App() {
   const [loc, setLoc] = useState(() => window.location.pathname + window.location.search + window.location.hash)
   const [cart, setCart] = useState<CartItem[]>([])
+  const [catalog, setCatalog] = useState<Product[]>(CATALOG)
   const [query, setQuery] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [toast, setToast] = useState('')
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(() => currentUser())
   const [authError, setAuthError] = useState('')
 
   const url = new URL(loc, window.location.origin)
@@ -308,23 +309,19 @@ function App() {
     setToast(text)
   }
 
-  function addItem(product: Product) {
+  async function addItem(product: Product) {
     if (!user) {
       go('/login')
       showToast('Войдите, чтобы добавить в корзину')
       return
     }
-    setCart((prev) => {
-      const found = prev.find((i) => i.id === product.id)
-      if (found) return prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i))
-      return [...prev, { id: product.id, title: product.title, price: product.price, qty: 1 }]
-    })
+    try { setCart(await addCartItem(product.id)) } catch (error) { return showToast(error instanceof Error ? error.message : 'Ошибка корзины') }
     showToast(`${product.title} — в корзине`)
   }
 
-  function removeItem(id: string) {
+  async function removeItem(id: string) {
     if (!user) return
-    setCart((prev) => prev.filter((item) => item.id !== id))
+    setCart(await removeCartItem(id))
   }
 
   function applyFilter(next: Filter) {
@@ -347,18 +344,15 @@ function App() {
   }
 
   useEffect(() => {
-    seedAdmin()
-    setUser(currentUser())
+    const saved = currentUser()
+    void loadGames<Product>().then(setCatalog).catch(() => showToast('Каталог временно работает офлайн'))
+    if (saved) void loadCart().then(setCart).catch(() => logoutUser())
   }, [])
 
   useEffect(() => {
     if (user && (isLogin || isRegister)) go('/account')
     if (user && isAdmin && user.role !== 'admin') go('/account')
   }, [user, isLogin, isRegister, isAdmin])
-
-  useEffect(() => {
-    setAuthError('')
-  }, [path])
 
   useEffect(() => {
     const sync = () => setLoc(window.location.pathname + window.location.search + window.location.hash)
@@ -456,6 +450,7 @@ function App() {
           onToggleGenre={toggleGenre}
           onPick={pickFacet}
           onAdd={addItem}
+          catalog={catalog}
         />
       ) : isRegister && !user ? (
         <RegisterPage
@@ -465,6 +460,7 @@ function App() {
             try {
               const next = await registerUser(name, email, password)
               setUser(next)
+              setCart(await loadCart())
               go('/account')
               showToast('Аккаунт создан')
             } catch (err) {
@@ -480,6 +476,7 @@ function App() {
             try {
               const next = await loginUser(email, password)
               setUser(next)
+              setCart(await loadCart())
               go(isAdmin ? '/admin' : '/account')
               showToast(`Вы вошли как ${next.name}`)
             } catch (err) {
@@ -490,8 +487,8 @@ function App() {
       ) : isAccount && user ? (
         <CabinetPage
           user={user}
-          onSave={(patch) => {
-            setUser(updateUser(user.id, patch))
+          onSave={async (patch) => {
+            setUser(await updateUser(user.id, patch))
           }}
             onLogout={() => {
               logoutUser()
@@ -504,7 +501,7 @@ function App() {
       ) : isAdmin && user?.role === 'admin' ? (
         <AdminPage user={user} />
       ) : isLogin || isRegister || isAccount || isAdmin ? null : (
-        <HomePage onAdd={addItem} onPick={() => setPickerOpen(true)} />
+        <HomePage products={catalog} featured={catalog.find((game) => game.isFeatured) ?? FEATURED} onAdd={addItem} onPick={() => setPickerOpen(true)} />
       )}
 
       <footer className="footer">
@@ -555,7 +552,7 @@ function App() {
                       <strong>{i.title}</strong>
                       <div>{i.qty} × {money(i.price)}</div>
                     </div>
-                    <button type="button" onClick={() => removeItem(i.id)}>убрать</button>
+                    <button type="button" onClick={() => void removeItem(i.id)}>убрать</button>
                   </li>
                 ))}
               </ul>
@@ -573,14 +570,14 @@ function App() {
               <button
                 className="btn btn--acid"
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!user) {
                     setCartOpen(false)
                     go('/login')
                     return showToast('Войдите, чтобы пользоваться корзиной')
                   }
                   if (!cart.length) return showToast('Корзина пустая')
-                  placeOrder(user.id, cart, sum)
+                  await placeOrder()
                   setCart([])
                   setCartOpen(false)
                   go('/account')
