@@ -15,22 +15,71 @@ function ProductCard({
 }) {
   return (
     <article className="card">
-      <div className={`card__media card__media--${product.media}`}>
-        <span className="card__mark">*</span>
-        {overlay ? <span className="tag tag--overlay">{overlay}</span> : null}
-      </div>
-      <div className="card__body">
-        <span className="tag">{product.tag}</span>
-        <h3>{product.title}</h3>
-        <p className="card__meta">{product.meta}</p>
-        <div className="card__footer">
-          <strong className="price">{money(product.price)}</strong>
-          <button className="btn btn--acid btn--sm" type="button" onClick={() => onAdd(product)}>
-            в корзину
-          </button>
+      <Link className="card__open" href={`/product/${product.id}`}>
+        <div className={`card__media card__media--${product.media}`}>
+          <span className="card__mark">*</span>
+          {overlay ? <span className="tag tag--overlay">{overlay}</span> : null}
         </div>
-      </div>
+        <div className="card__body">
+          <span className="tag">{product.tag}</span>
+          <h3>{product.title}</h3>
+          <p className="card__meta">{product.meta}</p>
+          <div className="card__footer">
+            <strong className="price">{money(product.price)}</strong>
+          </div>
+        </div>
+      </Link>
+      <button className="btn btn--acid btn--sm card__buy" type="button" onClick={() => onAdd(product)}>
+        в корзину
+      </button>
     </article>
+  )
+}
+
+function ProductPage({ product, onAdd }: { product?: Product; onAdd: (product: Product) => void }) {
+  if (!product) {
+    return (
+      <main className="product-page">
+        <nav className="crumbs" aria-label="Навигация">
+          <Link href="/">Главная</Link>
+          <span aria-hidden="true">•</span>
+          <Link href="/catalog">Каталог</Link>
+        </nav>
+        <h1>такой игры нет</h1>
+        <p className="product__lead">В каталоге её не нашли. Посмотрите другие коробки.</p>
+        <Link className="btn btn--primary" href="/catalog">в каталог</Link>
+      </main>
+    )
+  }
+
+  const genres = GENRES.filter((genre) => product.cats.includes(genre.id)).map((genre) => genre.title)
+
+  return (
+    <main className="product-page">
+      <nav className="crumbs" aria-label="Навигация">
+        <Link href="/">Главная</Link>
+        <span aria-hidden="true">•</span>
+        <Link href="/catalog">Каталог</Link>
+        <span aria-hidden="true">•</span>
+        <span>{product.title}</span>
+      </nav>
+      <article className="product">
+        <div className={`product__media card__media--${product.media}`}>
+          <span className="card__mark">*</span>
+        </div>
+        <div className="product__info">
+          <span className="tag">{product.tag}</span>
+          <h1>{product.title}</h1>
+          <p className="product__meta">{product.meta}</p>
+          {genres.length ? <p className="product__genres">{genres.join(' · ')}</p> : null}
+          <p className="product__lead">Коробка на полке в магазине на Московском. Можно забрать в тот же вечер или привезти на следующий день.</p>
+          <div className="product__buy">
+            <strong className="price">{money(product.price)}</strong>
+            <button className="btn btn--acid" type="button" onClick={() => onAdd(product)}>в корзину</button>
+          </div>
+        </div>
+      </article>
+    </main>
   )
 }
 
@@ -298,6 +347,9 @@ function App() {
   const isRegister = path === '/register'
   const isAccount = path === '/account'
   const isAdmin = path === '/admin'
+  const productMatch = path.match(/^\/product\/([^/]+)\/?$/)
+  const productId = productMatch ? decodeURIComponent(productMatch[1]) : ''
+  const isProduct = productMatch !== null
   const genres = parseGenres(url.searchParams.get('genre'))
   const tag = url.searchParams.get('tag') || ''
   const role = publicRole(user)
@@ -399,7 +451,7 @@ function App() {
           <Link href="/" className={isHome ? 'is-active' : undefined} onClick={() => setMenuOpen(false)}>главная</Link>
           <Link href="/catalog" className={isCatalog ? 'is-active' : undefined} onClick={() => setMenuOpen(false)}>каталог</Link>
           <Link href="/catalog?tag=новинка" onClick={() => setMenuOpen(false)}>новинки</Link>
-          <Link href={isCatalog || isAccount || isAdmin || isLogin || isRegister ? '/#about' : '#about'} onClick={() => setMenuOpen(false)}>про нас</Link>
+          <Link href={isHome ? '#about' : '/#about'} onClick={() => setMenuOpen(false)}>про нас</Link>
           {user ? (
             <Link href="/account" className={isAccount ? 'is-active' : undefined} onClick={() => setMenuOpen(false)}>кабинет</Link>
           ) : (
@@ -500,6 +552,8 @@ function App() {
         />
       ) : isAdmin && user?.role === 'admin' ? (
         <AdminPage user={user} />
+      ) : isProduct ? (
+        <ProductPage product={catalog.find((game) => game.id === productId)} onAdd={addItem} />
       ) : isLogin || isRegister || isAccount || isAdmin ? null : (
         <HomePage products={catalog} featured={catalog.find((game) => game.isFeatured) ?? FEATURED} onAdd={addItem} onPick={() => setPickerOpen(true)} />
       )}

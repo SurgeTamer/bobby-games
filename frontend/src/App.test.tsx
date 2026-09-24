@@ -38,7 +38,7 @@ describe('гость', () => {
     renderApp()
     expect(screen.getByRole('heading', { name: 'настольные игры для своих' })).toBeInTheDocument()
     expect(screen.getByText('игра недели')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 3, name: 'Древний ужас' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'Хнефатафл' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'хиты продаж' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'почему bobby' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'доставка за день' })).toBeInTheDocument()
@@ -70,6 +70,21 @@ describe('гость', () => {
     renderApp('/admin')
     expect(screen.getByRole('heading', { name: 'войти' })).toBeInTheDocument()
   })
+
+  it('открывает страницу игры по клику на карточку', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.click(screen.getByRole('link', { name: /Хнефатафл/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Хнефатафл' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/product/hnefatafl')
+    expect(screen.getByText('2 игрока · 30 мин · 8+')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Каталог' })).toBeInTheDocument()
+  })
+
+  it('сообщает, если такой игры нет', () => {
+    renderApp('/product/net')
+    expect(screen.getByRole('heading', { name: 'такой игры нет' })).toBeInTheDocument()
+  })
 })
 
 describe('каталог', () => {
@@ -88,6 +103,9 @@ describe('каталог', () => {
     await user.type(screen.getByRole('searchbox'), 'ДОББЛЬ')
     expect(await screen.findByRole('heading', { level: 1, name: 'Настольные игры' })).toBeInTheDocument()
     expect(cardTitles()).toEqual(['Доббль'])
+    await user.click(screen.getByRole('link', { name: /Доббль/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Доббль' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/product/dobble')
   })
 
   it('сообщает, если ничего не найдено', async () => {
@@ -273,7 +291,7 @@ describe('клиент', () => {
     await user.click(add)
     await user.click(add)
     expect(screen.getByRole('button', { name: 'корзина · 2' })).toBeInTheDocument()
-    expect(screen.getByText('Древний ужас — в корзине')).toBeInTheDocument()
+    expect(screen.getByText('Хнефатафл — в корзине')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'корзина · 2' }))
     const dialog = screen.getByRole('dialog', { name: 'корзина' })
