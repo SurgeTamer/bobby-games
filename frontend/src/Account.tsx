@@ -54,7 +54,7 @@ export function LoginPage({
         <span>Вход</span>
       </nav>
       <h1>войти</h1>
-      <p className="account-lead">Для гостя магазин открыт и так. Аккаунт нужен, чтобы оформлять заказы и смотреть их в кабинете.</p>
+      <p className="account-lead">Каталог открыт и без аккаунта. Войдите, чтобы собирать корзину и оформлять заказы.</p>
       <form
         className="account-card"
         onSubmit={async (e) => {

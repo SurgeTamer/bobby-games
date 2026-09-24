@@ -139,50 +139,26 @@ describe('каталог', () => {
 })
 
 describe('корзина', () => {
-  it('увеличивает количество одной и той же игры', async () => {
-    const user = userEvent.setup()
-    renderApp()
-    const add = screen.getAllByRole('button', { name: 'в корзину' })[0]
-    await user.click(add)
-    await user.click(add)
-    expect(screen.getByRole('button', { name: 'корзина · 2' })).toBeInTheDocument()
-    expect(screen.getByText('Древний ужас — в корзине')).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'корзина · 2' }))
-    const dialog = screen.getByRole('dialog', { name: 'корзина' })
-    expect(within(dialog).getByText(/2\s×\s6\s490\s₽/)).toBeInTheDocument()
-    expect(within(dialog).getByText(/12\s980\s₽/)).toBeInTheDocument()
-  })
-
-  it('убирает игру и показывает пустую корзину', async () => {
+  it('не даёт гостю добавить игру', async () => {
     const user = userEvent.setup()
     renderApp()
     await user.click(screen.getAllByRole('button', { name: 'в корзину' })[0])
-    await user.click(screen.getByRole('button', { name: /корзина/ }))
-    const dialog = screen.getByRole('dialog', { name: 'корзина' })
-    await user.click(within(dialog).getByRole('button', { name: 'убрать' }))
-    expect(within(dialog).getByText('Пока пусто — выберите игру из каталога.')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'войти' })).toBeInTheDocument()
+    expect(screen.getByText('Войдите, чтобы добавить в корзину')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'корзина · 0' })).toBeInTheDocument()
   })
 
-  it('не оформляет пустую корзину', async () => {
+  it('не даёт гостю менять корзину', async () => {
     const user = userEvent.setup()
     renderApp()
     await user.click(screen.getByRole('button', { name: /корзина/ }))
-    await user.click(screen.getByRole('button', { name: 'оформить' }))
-    expect(screen.getByText('Корзина пустая')).toBeInTheDocument()
-    expect(screen.getByRole('dialog', { name: 'корзина' })).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/')
-  })
-
-  it('отправляет гостя на вход, если корзина не пустая', async () => {
-    const user = userEvent.setup()
-    renderApp()
-    await user.click(screen.getAllByRole('button', { name: 'в корзину' })[0])
-    await user.click(screen.getByRole('button', { name: /корзина/ }))
-    await user.click(screen.getByRole('button', { name: 'оформить' }))
+    const dialog = screen.getByRole('dialog', { name: 'корзина' })
+    expect(within(dialog).getByText('Войдите, чтобы собирать корзину и менять её.')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: 'убрать' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'войти' }))
     expect(await screen.findByRole('heading', { name: 'войти' })).toBeInTheDocument()
-    expect(screen.getByText('Войдите, чтобы оформить заказ')).toBeInTheDocument()
+    expect(screen.getByText('Войдите, чтобы пользоваться корзиной')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'корзина · 0' })).toBeInTheDocument()
   })
 
   it('закрывает корзину по Escape и по меню', async () => {
@@ -286,6 +262,42 @@ describe('клиент', () => {
       address: 'Невский, 1',
       email: 'masha@bobby.games',
     })
+  })
+
+  it('увеличивает количество одной и той же игры', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await register(user, 'Маша', 'masha-qty@bobby.games')
+    await user.click(within(banner()).getByRole('link', { name: 'главная' }))
+    const add = screen.getAllByRole('button', { name: 'в корзину' })[0]
+    await user.click(add)
+    await user.click(add)
+    expect(screen.getByRole('button', { name: 'корзина · 2' })).toBeInTheDocument()
+    expect(screen.getByText('Древний ужас — в корзине')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'корзина · 2' }))
+    const dialog = screen.getByRole('dialog', { name: 'корзина' })
+    expect(within(dialog).getByText(/2\s×\s6\s490\s₽/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/12\s980\s₽/)).toBeInTheDocument()
+  })
+
+  it('убирает игру и не оформляет пустую корзину', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await register(user, 'Маша', 'masha-empty@bobby.games')
+    await user.click(within(banner()).getByRole('link', { name: 'главная' }))
+    await user.click(screen.getByRole('button', { name: /корзина/ }))
+    await user.click(screen.getByRole('button', { name: 'оформить' }))
+    expect(screen.getByText('Корзина пустая')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'корзина' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+
+    await user.click(screen.getAllByRole('button', { name: 'в корзину' })[0])
+    await user.click(screen.getByRole('button', { name: /корзина/ }))
+    const dialog = screen.getByRole('dialog', { name: 'корзина' })
+    await user.click(within(dialog).getByRole('button', { name: 'убрать' }))
+    expect(within(dialog).getByText('Пока пусто — выберите игру из каталога.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'корзина · 0' })).toBeInTheDocument()
   })
 
   it('оформляет заказ и показывает его в кабинете', async () => {

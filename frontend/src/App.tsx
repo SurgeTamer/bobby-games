@@ -309,12 +309,22 @@ function App() {
   }
 
   function addItem(product: Product) {
+    if (!user) {
+      go('/login')
+      showToast('Войдите, чтобы добавить в корзину')
+      return
+    }
     setCart((prev) => {
       const found = prev.find((i) => i.id === product.id)
       if (found) return prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + 1 } : i))
       return [...prev, { id: product.id, title: product.title, price: product.price, qty: 1 }]
     })
     showToast(`${product.title} — в корзине`)
+  }
+
+  function removeItem(id: string) {
+    if (!user) return
+    setCart((prev) => prev.filter((item) => item.id !== id))
   }
 
   function applyFilter(next: Filter) {
@@ -486,6 +496,7 @@ function App() {
             onLogout={() => {
               logoutUser()
               setUser(null)
+              setCart([])
               go('/')
               showToast('Вы вышли')
             }}
@@ -536,33 +547,39 @@ function App() {
               <h2 id="cart-title">корзина</h2>
               <button className="icon-btn" type="button" aria-label="Закрыть" onClick={() => setCartOpen(false)}>×</button>
             </header>
-            <ul className="cart-list">
-              {cart.map((i) => (
-                <li key={i.id}>
-                  <div>
-                    <strong>{i.title}</strong>
-                    <div>{i.qty} × {money(i.price)}</div>
-                  </div>
-                  <button type="button" onClick={() => setCart((prev) => prev.filter((x) => x.id !== i.id))}>убрать</button>
-                </li>
-              ))}
-            </ul>
-            {cart.length === 0 ? <p className="cart-empty">Пока пусто — выберите игру из каталога.</p> : null}
+            {user ? (
+              <ul className="cart-list">
+                {cart.map((i) => (
+                  <li key={i.id}>
+                    <div>
+                      <strong>{i.title}</strong>
+                      <div>{i.qty} × {money(i.price)}</div>
+                    </div>
+                    <button type="button" onClick={() => removeItem(i.id)}>убрать</button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {!user ? (
+              <p className="cart-empty">Войдите, чтобы собирать корзину и менять её.</p>
+            ) : cart.length === 0 ? (
+              <p className="cart-empty">Пока пусто — выберите игру из каталога.</p>
+            ) : null}
             <footer>
               <div className="cart-total">
                 <span>итого</span>
-                <strong>{money(sum)}</strong>
+                <strong>{money(user ? sum : 0)}</strong>
               </div>
               <button
                 className="btn btn--acid"
                 type="button"
                 onClick={() => {
-                  if (!cart.length) return showToast('Корзина пустая')
                   if (!user) {
                     setCartOpen(false)
                     go('/login')
-                    return showToast('Войдите, чтобы оформить заказ')
+                    return showToast('Войдите, чтобы пользоваться корзиной')
                   }
+                  if (!cart.length) return showToast('Корзина пустая')
                   placeOrder(user.id, cart, sum)
                   setCart([])
                   setCartOpen(false)
@@ -570,7 +587,7 @@ function App() {
                   showToast('Заказ принят — он в кабинете')
                 }}
               >
-                оформить
+                {user ? 'оформить' : 'войти'}
               </button>
             </footer>
           </aside>
